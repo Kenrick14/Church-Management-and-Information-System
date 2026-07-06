@@ -1,0 +1,5 @@
+backend/dbConnect.php
+backend/migrations
+node_modules
+package-lock.json
+package.json

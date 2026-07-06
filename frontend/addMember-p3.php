@@ -1,30 +1,32 @@
 <?php
-	session_start();
-	
-	$old = isset($_SESSION['old']) ? $_SESSION['old'] : [];
-	unset($_SESSION['old']); 
+session_start();
+
+$old = isset($_SESSION['old']) ? $_SESSION['old'] : [];
+unset($_SESSION['old']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <title>Add Member</title>
-    <link rel="stylesheet" href="./styles/pages.css">
+	<meta charset="UTF-8">
+	<title>Add Member</title>
+	<link rel="stylesheet" href="./styles/pages.css">
 </head>
+
 <body>
 	<div class="container">
 		<div class="header">
 			<h1>Add Member</h1>
 			<h2>Next of Kin</h2>
 		</div>
-		<?php if(isset($_SESSION['errors']) && !empty($_SESSION['errors'])): ?>
+		<?php if (isset($_SESSION['errors']) && !empty($_SESSION['errors'])): ?>
 			<div class="error-container">
-				<?php 
-					foreach($_SESSION['errors'] as $error){
-						echo '<p>'.nl2br(htmlspecialchars($error)) . '</p>';
-					}
-					// Clear errors after displaying
-					unset($_SESSION['errors']);
+				<?php
+				foreach ($_SESSION['errors'] as $error) {
+					echo '<p>' . nl2br(htmlspecialchars($error)) . '</p>';
+				}
+				// Clear errors after displaying
+				unset($_SESSION['errors']);
 				?>
 			</div>
 		<?php endif; ?>
@@ -40,7 +42,7 @@
 					</div>
 				</div>
 			</div>
-			
+
 			<div>
 				<label>Relation</label>
 				<select name="relation" required>
@@ -51,12 +53,12 @@
 					<option value="Friend">Friend</option>
 				</select>
 			</div>
-			
+
 			<div>
 				<label>Address</label>
 				<input type="text" name="kAdd1" placeholder="Address line 1" required />
-				<input type="text" name="kAdd2" placeholder="Address line 2" />
-				
+				<input type="text" name="kAdd2" placeholder="Address line 2 (Optional)" />
+
 				<div style="margin-top: 15px;">
 					<label>Parish</label>
 					<select name="kParish" required>
@@ -77,17 +79,17 @@
 					</select>
 				</div>
 			</div>
-			
+
 			<div>
 				<label>Phone Number</label>
 				<input type="tel" name="kPhone" placeholder="(876) XXX-XXXX" required />
 			</div>
-			
+
 			<div>
 				<label>Email</label>
 				<input type="email" name="kEmail" placeholder="xxxxx@xxxx.xxx" value="<?php echo htmlspecialchars($old['kEmail'] ?? ''); ?>" required>
 			</div>
-		
+
 			<div class="button-container">
 				<button type="reset" name="clearbtn">Clear</button>
 				<button type="submit" name="savebtn">Save</button>
@@ -95,4 +97,5 @@
 		</form>
 	</div>
 </body>
+
 </html>
