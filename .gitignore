@@ -1,5 +1,8 @@
 backend/dbConnect.php
 backend/migrations
+backend/config.php
+backend/supabase_client.php
+backend/test-connection.php
 node_modules
 package-lock.json
 package.json
