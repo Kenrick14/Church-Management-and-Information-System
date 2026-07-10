@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../backend/auth_guard.php';
+require_once __DIR__ . '/../backend/membersData.php';
 
 function cmis_initials(string $name): string
 {
@@ -10,19 +11,7 @@ function cmis_initials(string $name): string
   }
   return $initials ?: '?';
 }
-
-// Try fetching real members via PostgREST. If Supabase isn't
-// configured yet (placeholder keys) or the call fails for any reason,
-// $serverMembers stays null and the page quietly falls back to the
-// same demo data used before, so the UI never breaks during setup.
-$membersResult = supabase_rest('GET', 'members', [
-  'select' => 'mem_id,first_name,last_name,status,parish,telephone,email,date_joined',
-  'order'  => 'date_joined.desc',
-]);
-
-$serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
-  ? $membersResult['data']
-  : null;
+$serverMembers = fetch_members();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -43,9 +32,7 @@ $serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
 
 <body>
 
-  <!-- ===================================================================
-     NAVBAR (shared across pages)
-=================================================================== -->
+  <!--NAVBAR (shared across pages)-->
   <nav class="navbar navbar-expand-lg cmis-navbar sticky-top" id="mainNav">
     <div class="container-fluid px-3 px-lg-4">
 
@@ -100,9 +87,7 @@ $serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
     </div>
   </nav>
 
-  <!-- ===================================================================
-     PAGE HEADER
-=================================================================== -->
+  <!--PAGE HEADER-->
   <header class="cmis-page-header">
     <div class="cmis-hero-arches" aria-hidden="true">
       <svg viewBox="0 0 480 140" preserveAspectRatio="xMidYMax slice">
@@ -129,9 +114,7 @@ $serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
     </div>
   </header>
 
-  <!-- ===================================================================
-     MAIN
-=================================================================== -->
+  <!--MAIN-->
   <main class="container-fluid px-3 px-lg-4 cmis-main">
 
     <!-- FILTER BAR -->
@@ -188,7 +171,7 @@ $serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
             </tr>
           </thead>
           <tbody id="membersTableBody">
-            <!-- Rows injected by members.js -->
+
           </tbody>
         </table>
       </div>
@@ -208,9 +191,7 @@ $serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
     </div>
   </footer>
 
-  <!-- ===================================================================
-     TOAST (success feedback)
-=================================================================== -->
+  <!--TOAST (success feedback)-->
   <div class="toast-container position-fixed bottom-0 end-0 p-4" style="z-index: 1080;">
     <div id="successToast" class="toast cmis-toast" role="status" aria-live="polite" aria-atomic="true">
       <div class="d-flex align-items-center">
@@ -223,9 +204,7 @@ $serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
     </div>
   </div>
 
-  <!-- ===================================================================
-     ADD MEMBER MODAL — 3-step wizard
-=================================================================== -->
+  <!-- ADD MEMBER MODAL — 3-step wizard-->
   <div class="modal fade" id="addMemberModal" tabindex="-1" aria-labelledby="addMemberModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content cmis-modal">
@@ -357,7 +336,7 @@ $serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="cmis-field-label">Phone Number</label>
-                  <input type="tel" class="cmis-input" name="telephone" placeholder="(876) XXX-XXXX" required>
+                  <input type="tel" class="cmis-input phone-mask" name="telephone" placeholder="(876) XXX-XXXX" required>
                 </div>
                 <div class="col-md-6">
                   <label class="cmis-field-label">Email</label>
@@ -416,7 +395,7 @@ $serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="cmis-field-label">Phone Number</label>
-                  <input type="tel" class="cmis-input" name="nk_telephone" placeholder="(876) XXX-XXXX" required>
+                  <input type="tel" class="cmis-input phone-mask" name="nk_telephone" placeholder="(876) XXX-XXXX" required>
                 </div>
                 <div class="col-md-6">
                   <label class="cmis-field-label">Email</label>
@@ -443,13 +422,11 @@ $serverMembers = ($membersResult['ok'] && is_array($membersResult['data']))
     </div>
   </div>
 
-  <!-- Real member data from Supabase (via PostgREST), or null if the
-     call failed / Supabase isn't configured yet — members.js falls
-     back to demo data in that case. -->
   <script>
     const serverMembers = <?php echo $serverMembers !== null ? json_encode($serverMembers) : 'null'; ?>;
   </script>
 
+  <script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.9/dist/inputmask.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="scripts/members.js"></script>
 </body>

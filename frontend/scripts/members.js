@@ -1,11 +1,3 @@
-/* =====================================================================
-   CMIS Members Page — Interactivity
-   `serverMembers` is defined in a small inline <script> in members.php,
-   populated from a real PostgREST call. If that call failed or
-   Supabase isn't configured yet, it's null and we fall back to
-   `fallbackMembers` below so the UI still works during setup.
-===================================================================== */
-
 const PAGE_SIZE = 8;
 let currentPage = 1;
 let filteredMembers = [];
@@ -27,8 +19,6 @@ const fallbackMembers = [
   { mem_id: 14, first_name: 'Simone', last_name: 'Clarke', status: 'Visitor', parish: 'St. Elizabeth', telephone: '(876) 555-1289', email: 'simone.clarke@example.com', date_joined: '2024-06-11' },
 ];
 
-// `serverMembers` comes from members.php (real data, or null if the
-// Supabase call didn't succeed / isn't configured yet).
 let allMembers = (typeof serverMembers !== 'undefined' && Array.isArray(serverMembers) && serverMembers.length)
   ? serverMembers
   : fallbackMembers;
@@ -36,8 +26,7 @@ let allMembers = (typeof serverMembers !== 'undefined' && Array.isArray(serverMe
 const avatarPalette = ['#1F4B3F', '#C9A227', '#7A2E3A', '#6B776F', '#4E7A6A'];
 const statusTagClass = { Member: 'cmis-tag--green', Adherent: 'cmis-tag--gold', Visitor: 'cmis-tag--slate' };
 
-// Simple string hash so avatar colors are stable whether mem_id is a
-// mock integer or a real Supabase UUID.
+// Simple string hash so avatar colors are stable whether mem_id is a mock integer or a real Supabase UUID.
 function hashToIndex(value, modulo) {
   const str = String(value);
   let hash = 0;
@@ -54,11 +43,15 @@ document.addEventListener('DOMContentLoaded', () => {
   initStepper();
   initAvatarUpload();
   bindFormSubmit();
+  setPhoneMask();
 });
 
-/* ---------------------------------------------------------------------
-   Rendering
---------------------------------------------------------------------- */
+function setPhoneMask() {
+  Inputmask("(876)999-9999").mask(document.querySelectorAll(".phone-mask"));
+}
+
+
+/*Rendering*/
 function renderTable() {
   const tbody = document.getElementById('membersTableBody');
   const start = (currentPage - 1) * PAGE_SIZE;
@@ -135,9 +128,7 @@ function renderPagination() {
   });
 }
 
-/* ---------------------------------------------------------------------
-   Filtering
---------------------------------------------------------------------- */
+/*Filtering*/
 function bindFilterEvents() {
   const searchInput = document.getElementById('searchInput');
   const statusFilter = document.getElementById('statusFilter');
@@ -172,9 +163,7 @@ function bindFilterEvents() {
   });
 }
 
-/* ---------------------------------------------------------------------
-   Add Member modal — step wizard
---------------------------------------------------------------------- */
+/*Add Member modal — step wizard*/
 let currentStep = 1;
 const TOTAL_STEPS = 3;
 
@@ -239,9 +228,7 @@ function validateStep(panelEl) {
   return true;
 }
 
-/* ---------------------------------------------------------------------
-   Avatar upload preview
---------------------------------------------------------------------- */
+/*Avatar upload preview*/
 function initAvatarUpload() {
   const input = document.getElementById('avatarInput');
   input.addEventListener('change', () => {
@@ -266,53 +253,57 @@ function resetAvatarPreview() {
   preview.innerHTML = '<i class="bi bi-person"></i>';
 }
 
-/* ---------------------------------------------------------------------
-   Final submit
---------------------------------------------------------------------- */
+/*Form submit handler*/
 function bindFormSubmit() {
-  document.getElementById('addMemberForm').addEventListener('submit', (e) => {
+  document.getElementById('addMemberForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const lastPanel = document.querySelector(`.cmis-step-panel[data-step="${TOTAL_STEPS}"]`);
     if (!validateStep(lastPanel)) return;
 
     const formData = new FormData(e.target);
-    const values = Object.fromEntries(formData.entries());
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
 
-    // TODO: this should POST to a PHP endpoint (e.g. add-member.php)
-    // that validates input server-side (reusing the regex validators
-    // from AM-p1.php, extended to the full form) and calls:
-    //   1. supabase_rest('POST', 'next_of_kin', [], {...}) -> get nk_id
-    //   2. supabase_rest('POST', 'members', [], {..., nk_id}) -> get mem_id
-    //   3. upload the avatar file to storage, update members.avatar_path
-    // For now this just simulates success so the wizard/UI can be
-    // tested end-to-end before that endpoint exists.
-    console.log('New member payload:', values);
+    try {
+      const response = await fetch('../backend/addMember.php', {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await response.json();
 
-    // Optimistically add to the table so the demo feels real
-    const newMember = {
-      mem_id: `temp-${Date.now()}`,
-      first_name: values.first_name,
-      last_name: values.last_name,
-      status: values.status,
-      parish: values.parish,
-      telephone: values.telephone,
-      email: values.email,
-      date_joined: values.date_joined,
-    };
-    allMembers.unshift(newMember);
-    filteredMembers = [...allMembers];
-    currentPage = 1;
-    renderTable();
+      if (!result.success) {
+        showModalErrors(result.errors);
+        return;
+      }
 
-    bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
-    showToast(`${newMember.first_name} ${newMember.last_name} was added successfully.`);
+      allMembers.unshift(result.member);
+      filteredMembers = [...allMembers];
+      currentPage = 1;
+      renderTable();
+
+      bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
+      showToast(`${result.member.first_name} ${result.member.last_name} was added successfully.`);
+    } catch (err) {
+      showModalErrors(['Something went wrong. Please check your connection and try again.']);
+    } finally {
+      saveBtn.disabled = false;
+    }
   });
 }
 
-/* ---------------------------------------------------------------------
-   Toast helper
---------------------------------------------------------------------- */
+function showModalErrors(errors) {
+  let box = document.getElementById('modalErrorBox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'modalErrorBox';
+    box.className = 'cmis-login-error mb-3';
+    document.querySelector('.cmis-modal-body').prepend(box);
+  }
+  box.innerHTML = errors.map((msg) => `<div>${msg}</div>`).join('');
+}
+
+/*Toast helper*/
 function showToast(message) {
   document.getElementById('toastMessage').textContent = message;
   const toastEl = document.getElementById('successToast');
