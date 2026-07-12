@@ -1,10 +1,4 @@
 <?php
-// membersData.php — backend data layer for the Members page.
-// No HTML output here at all; this file is `require`d by
-// frontend/members.php, never hit directly by the browser.
-//
-// Assumes supabase_client.php has already been loaded (auth_guard.php,
-// required before this file, takes care of that).
 
 /**
  * Fetch members from Supabase via PostgREST.
@@ -17,13 +11,43 @@
 function fetch_members(): ?array
 {
     $result = supabase_rest('GET', 'members', [
-        'select' => 'mem_id,first_name,last_name,status,parish,telephone,email,date_joined',
+        'select' => 'mem_id,first_name,last_name,status,parish,telephone,email,date_joined,avatar_path',
         'order'  => 'date_joined.desc',
     ]);
 
-    if ($result['ok'] && is_array($result['data'])) {
-        return $result['data'];
+    if (!$result['ok'] || !is_array($result['data'])) {
+        return null;
     }
 
-    return null;
+    foreach ($result['data'] as &$member) {
+        $member['avatar_url'] = !empty($member['avatar_path'])
+            ? supabase_public_url('profile-photos', $member['avatar_path'])
+            : null;
+    }
+    unset($member);
+
+    return $result['data'];
+}
+
+/**
+ * @return array|null  The member row (with a nested 'next_of_kin'
+ *                      object), or null if not found / the call failed.
+ */
+function fetch_member_detail(string $memId): ?array
+{
+    $result = supabase_rest('GET', 'members', [
+        'select' => '*,next_of_kin(nk_id,first_name,last_name,relation,address_1,address_2,parish,telephone,email)',
+        'mem_id' => 'eq.' . $memId,
+    ]);
+
+    if (!$result['ok'] || empty($result['data'][0])) {
+        return null;
+    }
+
+    $member = $result['data'][0];
+    $member['avatar_url'] = !empty($member['avatar_path'])
+        ? supabase_public_url('profile-photos', $member['avatar_path'])
+        : null;
+
+    return $member;
 }

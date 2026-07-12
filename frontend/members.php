@@ -11,6 +11,7 @@ function cmis_initials(string $name): string
   }
   return $initials ?: '?';
 }
+
 $serverMembers = fetch_members();
 ?>
 <!DOCTYPE html>
@@ -171,7 +172,7 @@ $serverMembers = fetch_members();
             </tr>
           </thead>
           <tbody id="membersTableBody">
-
+            <!-- Rows injected by members.js -->
           </tbody>
         </table>
       </div>
@@ -204,14 +205,14 @@ $serverMembers = fetch_members();
     </div>
   </div>
 
-  <!-- ADD MEMBER MODAL — 3-step wizard-->
+  <!--ADD MEMBER MODAL — 3-step wizard-->
   <div class="modal fade" id="addMemberModal" tabindex="-1" aria-labelledby="addMemberModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content cmis-modal">
 
         <div class="modal-header cmis-modal-header">
           <div>
-            <h2 class="modal-title cmis-card-title" id="addMemberModalLabel">Add New Member</h2>
+            <h2 class="modal-title cmis-card-title" id="addMemberModalLabel"><span id="memberModalTitleText">Add New Member</span></h2>
             <p class="cmis-card-subtitle mb-0">Step <span id="stepNumLabel">1</span> of 3</p>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -236,6 +237,9 @@ $serverMembers = fetch_members();
         </div>
 
         <form id="addMemberForm" novalidate>
+          <input type="hidden" name="mem_id" id="formMemId" value="">
+          <input type="hidden" name="nk_id" id="formNkId" value="">
+
           <div class="modal-body cmis-modal-body">
 
             <!-- STEP 1: Personal Information -->
@@ -250,8 +254,8 @@ $serverMembers = fetch_members();
                   <label class="cmis-upload-btn" for="avatarInput">
                     <i class="bi bi-camera me-2"></i>Upload Photo
                   </label>
-                  <input type="file" id="avatarInput" accept="image/*" hidden>
-                  <p class="cmis-upload-hint">JPG or PNG. Stored in the <code>profile-photos</code> bucket.</p>
+                  <input type="file" id="avatarInput" name="avatar" accept="image/jpeg,image/png" hidden>
+                  <p class="cmis-upload-hint">JPG or PNG, up to 5MB.</p>
                 </div>
               </div>
 
@@ -414,10 +418,45 @@ $serverMembers = fetch_members();
               Next<i class="bi bi-arrow-right ms-2"></i>
             </button>
             <button type="submit" class="cmis-btn-gold d-none" id="saveBtn">
-              <i class="bi bi-check2 me-2"></i>Save Member
+              <i class="bi bi-check2 me-2"></i><span id="saveBtnLabel">Save Member</span>
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!--VIEW MEMBER MODAL — read-only summary-->
+  <div class="modal fade" id="viewMemberModal" tabindex="-1" aria-labelledby="viewMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content cmis-modal">
+
+        <div class="modal-header cmis-modal-header">
+          <h2 class="modal-title cmis-card-title" id="viewMemberModalLabel">Member Details</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body cmis-modal-body text-center">
+          <div class="cmis-avatar-preview mx-auto mb-3" id="viewAvatar" style="width:88px;height:88px;font-size:1.8rem;">
+            <i class="bi bi-person"></i>
+          </div>
+
+          <h3 class="cmis-step-heading mb-1" id="viewName">—</h3>
+          <p class="mb-4"><span class="cmis-tag cmis-tag--green" id="viewStatus">—</span></p>
+
+          <div class="text-start">
+            <p class="cmis-field-label mb-1">Date of Birth</p>
+            <p class="mb-3" id="viewDob">—</p>
+
+            <p class="cmis-field-label mb-1">Next of Kin</p>
+            <p class="mb-0 fw-semibold" id="viewNkName">—</p>
+            <p class="cmis-card-subtitle mb-0" id="viewNkContact">—</p>
+          </div>
+        </div>
+
+        <div class="modal-footer cmis-modal-footer justify-content-end">
+          <button type="button" class="cmis-btn-ghost" data-bs-dismiss="modal">Close</button>
+        </div>
       </div>
     </div>
   </div>

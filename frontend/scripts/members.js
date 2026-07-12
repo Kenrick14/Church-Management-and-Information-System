@@ -26,7 +26,8 @@ let allMembers = (typeof serverMembers !== 'undefined' && Array.isArray(serverMe
 const avatarPalette = ['#1F4B3F', '#C9A227', '#7A2E3A', '#6B776F', '#4E7A6A'];
 const statusTagClass = { Member: 'cmis-tag--green', Adherent: 'cmis-tag--gold', Visitor: 'cmis-tag--slate' };
 
-// Simple string hash so avatar colors are stable whether mem_id is a mock integer or a real Supabase UUID.
+// Simple string hash so avatar colors are stable whether mem_id is a
+// mock integer or a real Supabase UUID.
 function hashToIndex(value, modulo) {
   const str = String(value);
   let hash = 0;
@@ -40,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
   filteredMembers = [...allMembers];
   renderTable();
   bindFilterEvents();
+  bindRowActionEvents();
   initStepper();
   initAvatarUpload();
   bindFormSubmit();
@@ -49,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
 function setPhoneMask() {
   Inputmask("(876)999-9999").mask(document.querySelectorAll(".phone-mask"));
 }
-
 
 /*Rendering*/
 function renderTable() {
@@ -63,11 +64,15 @@ function renderTable() {
     const tagClass = statusTagClass[m.status] || 'cmis-tag--slate';
     const formattedDate = new Date(m.date_joined).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
+    const avatarHtml = m.avatar_url
+      ? `<img src="${m.avatar_url}" alt="" class="cmis-member-avatar" style="object-fit:cover;">`
+      : `<span class="cmis-member-avatar" style="background:${color}">${initials}</span>`;
+
     return `
       <tr>
         <td>
           <div class="cmis-member-cell">
-            <span class="cmis-member-avatar" style="background:${color}">${initials}</span>
+            ${avatarHtml}
             <div>
               <div class="cmis-member-name">${m.first_name} ${m.last_name}</div>
               <div class="cmis-member-sub">${m.email}</div>
@@ -80,8 +85,9 @@ function renderTable() {
         <td>${formattedDate}</td>
         <td>
           <div class="cmis-row-actions">
-            <button class="cmis-icon-btn" type="button" title="View member"><i class="bi bi-eye"></i></button>
-            <button class="cmis-icon-btn" type="button" title="Edit member"><i class="bi bi-pencil"></i></button>
+            <button class="cmis-icon-btn js-view-member" type="button" data-mem-id="${m.mem_id}" title="View member"><i class="bi bi-eye"></i></button>
+            <button class="cmis-icon-btn js-edit-member" type="button" data-mem-id="${m.mem_id}" title="Edit member"><i class="bi bi-pencil"></i></button>
+            <button class="cmis-icon-btn js-delete-member" type="button" data-mem-id="${m.mem_id}" data-mem-name="${m.first_name} ${m.last_name}" title="Delete member"><i class="bi bi-trash"></i></button>
           </div>
         </td>
       </tr>`;
@@ -136,8 +142,8 @@ function bindFilterEvents() {
 
   const applyFilters = () => {
     const q = searchInput.value.trim().toLowerCase();
-    const status = statusFilter.value;
-    const parish = parishFilter.value;
+    const status = statusFilter.value.toLowerCase();
+    const parish = parishFilter.value.toLowerCase();
 
     filteredMembers = allMembers.filter((m) => {
       const matchesSearch = !q ||
@@ -163,7 +169,150 @@ function bindFilterEvents() {
   });
 }
 
-/*Add Member modal — step wizard*/
+/* Row actions — view / edit / delete (event delegation)*/
+function bindRowActionEvents() {
+  document.getElementById('membersTableBody').addEventListener('click', (e) => {
+    const viewBtn = e.target.closest('.js-view-member');
+    const editBtn = e.target.closest('.js-edit-member');
+    const deleteBtn = e.target.closest('.js-delete-member');
+
+    if (viewBtn) openViewModal(viewBtn.dataset.memId);
+    else if (editBtn) openEditModal(editBtn.dataset.memId);
+    else if (deleteBtn) handleDeleteMember(deleteBtn.dataset.memId, deleteBtn.dataset.memName);
+  });
+}
+
+async function fetchMemberDetail(memId) {
+  const response = await fetch(`../backend/memberActions.php?mem_id=${encodeURIComponent(memId)}`);
+  const result = await response.json();
+  if (!result.success) throw new Error(result.errors?.[0] || 'Could not load member.');
+  return result.member;
+}
+
+/*View modal*/
+async function openViewModal(memId) {
+  let member;
+  try {
+    member = await fetchMemberDetail(memId);
+  } catch (err) {
+    showToast(err.message);
+    return;
+  }
+
+  const avatarEl = document.getElementById('viewAvatar');
+  avatarEl.innerHTML = member.avatar_url
+    ? `<img src="${member.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+    : '<i class="bi bi-person"></i>';
+
+  document.getElementById('viewName').textContent = `${member.first_name} ${member.last_name}`;
+  document.getElementById('viewStatus').textContent = member.status
+    ? member.status.charAt(0).toUpperCase() + member.status.slice(1)
+    : '—';
+  document.getElementById('viewDob').textContent = member.dob
+    ? new Date(member.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : '—';
+
+  const nk = member.next_of_kin;
+  document.getElementById('viewNkName').textContent = nk ? `${nk.first_name} ${nk.last_name} (${nk.relation})` : '—';
+  document.getElementById('viewNkContact').textContent = nk ? `${nk.telephone} · ${nk.email}` : '—';
+
+  new bootstrap.Modal(document.getElementById('viewMemberModal')).show();
+}
+
+/*Edit modal — reuses the Add Member wizard, pre-filled*/
+async function openEditModal(memId) {
+  let member;
+  try {
+    member = await fetchMemberDetail(memId);
+  } catch (err) {
+    showToast(err.message);
+    return;
+  }
+
+  const form = document.getElementById('addMemberForm');
+  form.reset();
+
+  document.getElementById('formMemId').value = member.mem_id;
+  document.getElementById('formNkId').value = member.next_of_kin ? member.next_of_kin.nk_id : '';
+
+  form.first_name.value = member.first_name || '';
+  form.mid_init.value = member.mid_init || '';
+  form.last_name.value = member.last_name || '';
+  form.dob.value = member.dob || '';
+  form.date_joined.value = member.date_joined || '';
+  form.passing_date.value = member.passing_date || '';
+  setRadioValue(form.gender, member.gender);
+  setRadioValue(form.status, member.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : '');
+
+  form.address_1.value = member.address_1 || '';
+  form.address_2.value = member.address_2 || '';
+  form.parish.value = member.parish || '';
+  form.telephone.value = member.telephone || '';
+  form.email.value = member.email || '';
+
+  const nk = member.next_of_kin || {};
+  form.nk_first_name.value = nk.first_name || '';
+  form.nk_last_name.value = nk.last_name || '';
+  form.nk_relation.value = nk.relation || '';
+  form.nk_address_1.value = nk.address_1 || '';
+  form.nk_address_2.value = nk.address_2 || '';
+  form.nk_parish.value = nk.parish || '';
+  form.nk_telephone.value = nk.telephone || '';
+  form.nk_email.value = nk.email || '';
+
+  const preview = document.getElementById('avatarPreview');
+  preview.innerHTML = member.avatar_url
+    ? `<img src="${member.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+    : '<i class="bi bi-person"></i>';
+
+  document.getElementById('memberModalTitleText').textContent = 'Edit Member';
+  document.getElementById('saveBtnLabel').textContent = 'Save Changes';
+
+  goToStep(1);
+  new bootstrap.Modal(document.getElementById('addMemberModal')).show();
+}
+
+function setRadioValue(radioNodeList, value) {
+  if (!radioNodeList || !value) return;
+  for (const radio of radioNodeList) {
+    radio.checked = radio.value === value;
+  }
+}
+
+function resetModalToAddMode() {
+  document.getElementById('formMemId').value = '';
+  document.getElementById('formNkId').value = '';
+  document.getElementById('memberModalTitleText').textContent = 'Add New Member';
+  document.getElementById('saveBtnLabel').textContent = 'Save Member';
+}
+
+/*Delete*/
+async function handleDeleteMember(memId, memName) {
+  if (!confirm(`Delete ${memName}? This cannot be undone.`)) return;
+
+  try {
+    const response = await fetch('../backend/memberActions.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `_method=DELETE&mem_id=${encodeURIComponent(memId)}`,
+    });
+    const result = await response.json();
+
+    if (!result.success) {
+      showToast(result.errors?.[0] || 'Could not delete member.');
+      return;
+    }
+
+    allMembers = allMembers.filter((m) => String(m.mem_id) !== String(memId));
+    filteredMembers = filteredMembers.filter((m) => String(m.mem_id) !== String(memId));
+    renderTable();
+    showToast(`${memName} was deleted.`);
+  } catch (err) {
+    showToast('Something went wrong. Please check your connection and try again.');
+  }
+}
+
+/*Add Member modal — step wizard */
 let currentStep = 1;
 const TOTAL_STEPS = 3;
 
@@ -185,6 +334,7 @@ function initStepper() {
     // Reset wizard state when modal closes
     document.getElementById('addMemberForm').reset();
     resetAvatarPreview();
+    resetModalToAddMode();
     goToStep(1);
   });
 }
@@ -242,9 +392,6 @@ function initAvatarUpload() {
     };
     reader.readAsDataURL(file);
 
-    // TODO: on save, upload `file` to the 'profile-photos' bucket at
-    // `members/${mem_id}.jpg` and store the returned path in
-    // members.avatar_path
   });
 }
 
@@ -253,7 +400,6 @@ function resetAvatarPreview() {
   preview.innerHTML = '<i class="bi bi-person"></i>';
 }
 
-/*Form submit handler*/
 function bindFormSubmit() {
   document.getElementById('addMemberForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -265,8 +411,11 @@ function bindFormSubmit() {
     const saveBtn = document.getElementById('saveBtn');
     saveBtn.disabled = true;
 
+    const memId = document.getElementById('formMemId').value;
+    const isEditing = Boolean(memId);
+
     try {
-      const response = await fetch('../backend/addMember.php', {
+      const response = await fetch('../backend/memberActions.php', {
         method: 'POST',
         body: formData,
       });
@@ -277,13 +426,23 @@ function bindFormSubmit() {
         return;
       }
 
-      allMembers.unshift(result.member);
+      if (isEditing) {
+        const index = allMembers.findIndex((m) => String(m.mem_id) === String(memId));
+        if (index !== -1) allMembers[index] = result.member;
+      } else {
+        allMembers.unshift(result.member);
+      }
       filteredMembers = [...allMembers];
       currentPage = 1;
       renderTable();
 
       bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
-      showToast(`${result.member.first_name} ${result.member.last_name} was added successfully.`);
+
+      const name = `${result.member.first_name} ${result.member.last_name}`;
+      const warningText = (result.warnings && result.warnings.length)
+        ? ` (${result.warnings.join(' ')})`
+        : '';
+      showToast(`${name} was ${isEditing ? 'updated' : 'added'} successfully.${warningText}`);
     } catch (err) {
       showModalErrors(['Something went wrong. Please check your connection and try again.']);
     } finally {
@@ -303,7 +462,7 @@ function showModalErrors(errors) {
   box.innerHTML = errors.map((msg) => `<div>${msg}</div>`).join('');
 }
 
-/*Toast helper*/
+/*Toast helpe */
 function showToast(message) {
   document.getElementById('toastMessage').textContent = message;
   const toastEl = document.getElementById('successToast');
