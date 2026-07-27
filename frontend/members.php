@@ -44,7 +44,7 @@ $serverMembers = fetch_members();
           </svg>
         </span>
         <span class="cmis-brand-text">
-          <span class="cmis-brand-name">The Church</span>
+          <span class="cmis-brand-name">Portmore United Church</span>
           <span class="cmis-brand-sub">CMIS</span>
         </span>
       </a>

@@ -51,7 +51,7 @@ unset($_SESSION['login_error'], $_SESSION['old_email']);
           </svg>
         </span>
         <div>
-          <div class="cmis-brand-name">The Church</div>
+          <div class="cmis-brand-name">Portmore United Church</div>
           <div class="cmis-brand-sub">CMIS</div>
         </div>
       </div>

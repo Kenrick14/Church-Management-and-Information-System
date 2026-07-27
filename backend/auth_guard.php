@@ -1,14 +1,4 @@
 <?php
-// auth_guard.php — require this at the very top of any protected
-// page, before any HTML output (it may redirect via header()).
-//
-// Confirms a valid Supabase session exists, transparently refreshing
-// it if it's about to expire, or sends the user to login.php.
-//
-// Lives in backend/, so redirects point to ../frontend/login.php —
-// pages including this file (e.g. frontend/dashboard.php) do so via:
-//   require_once __DIR__ . '/../backend/auth_guard.php';
-
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
