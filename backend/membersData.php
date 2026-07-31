@@ -51,3 +51,13 @@ function fetch_member_detail(string $memId): ?array
 
     return $member;
 }
+
+function fetch_members_lookup(): array
+{
+    $result = supabase_rest('GET', 'members', [
+        'select' => 'mem_id,first_name,last_name',
+        'order'  => 'first_name.asc',
+    ]);
+
+    return ($result['ok'] && is_array($result['data'])) ? $result['data'] : [];
+}

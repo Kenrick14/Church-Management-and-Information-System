@@ -43,6 +43,7 @@ function fetch_ministries_lookup(): array
 {
     $result = supabase_rest('GET', 'ministries', [
         'select' => 'min_id,name',
+        'is_active' => 'eq.true',
         'order'  => 'name.asc',
     ]);
 
