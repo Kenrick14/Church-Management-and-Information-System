@@ -43,6 +43,7 @@ $profile = supabase_rest('GET', 'users', [
 if ($profile['ok'] && !empty($profile['data'][0])) {
     $row = $profile['data'][0];
     $_SESSION['user_role']     = $row['role'] ?? null;
+    $_SESSION['user_uid']      = $result['data']['user']['id'];
     $_SESSION['user_username'] = $row['username'] ?? $email;
     $_SESSION['user_mem_id']   = $row['mem_id'] ?? null;
 
